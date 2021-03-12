@@ -12,7 +12,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 
 public class WorkThread implements Runnable {
   private String fileName;
-  private static int fetchsize = 500;
+  private static int fetchsize = 5000;
   private static String pathPrefix = "root.perf.";
   private final Random rand = new Random();
   private Session session;
@@ -33,7 +33,7 @@ public class WorkThread implements Runnable {
 
   public WorkThread(String file) {
     this.fileName = file;
-    this.session = new Session("127.0.0.1", 6667, "root", "root");
+    this.session = new Session("172.31.28.118", 6667, "root", "root");
     try {
       session.open(false);
     } catch (IoTDBConnectionException e) {
@@ -48,7 +48,8 @@ public class WorkThread implements Runnable {
     List<String> deviceIds = new ArrayList<>();
     List<Long> times = new ArrayList<>();
     long count = 0;
-    long totaltime = 0;
+    long totalInsertTime = 0;
+    long start = System.nanoTime();
     try {
       BufferedReader reader = new BufferedReader(new FileReader(inFile));
       while((line = reader.readLine())!= null){
@@ -64,15 +65,16 @@ public class WorkThread implements Runnable {
           count += fetchsize;
         }
       }
-      totaltime += insertRecords(session, deviceIds, times);
+      totalInsertTime += insertRecords(session, deviceIds, times);
       count += deviceIds.size();
       reader.close();
       this.session.close();
     } catch (IOException | StatementExecutionException | IoTDBConnectionException ex) {
       System.out.println("error");
     }
-    long mili = totaltime / 1000000;
-    System.out.println("Spent " + mili + " miliseconds to insert " + count + " rows.");
+    long end = System.nanoTime();
+    long totaltime = end - start;
+    System.out.println("Thread " + Thread.currentThread().getName() + " spent " + totaltime / 1000000 + " miliseconds to insert " + count + " rows. " + "Pure insertion time: " + totalInsertTime / 1000000);
   }
 
   private long insertRecords(Session session, List<String> deviceIds, List<Long> times) throws StatementExecutionException, IoTDBConnectionException {
