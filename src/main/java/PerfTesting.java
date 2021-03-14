@@ -34,31 +34,6 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 import org.h2.store.fs.FilePath;
 
 public class PerfTesting {
-  private static final int TIME_SERIES_NUM = 3;
-  private static int fetchsize = 5;
-  private static String pathPrefix = "root.perf.";
-  private static int threadNum = 12;
-  private final Random rand = new Random();
-  private Session session;
-
-  private static String vehicles[] = {
-          "accelerationFB", "accelerationLR", "speed_TypeA", "steeringAngle_TypeA", "EngineRPM_TypeA",
-          "TirePressureFL_kpa", "FuelGageIndication", "latitude", "longitude", "AccelPedalAngle_TypeA",
-          "TirePressureFR_kpa", "TirePressureRL_kpa", "TirePressureRR_kpa", "AmbientTemperature", "TemperatureD",
-          "turnLampSwitchStatus", "ATShiftPosition", "BrakePedal", "DoorOpenD", "ParkingBrake", "EcoModeIndicator",
-          "PowerModeSelect_TypeA", "SportModeSelect", "WindowPositionD", "AirConIndicator", "Odometer_km", "HeadLamp_TypeB"
-  };
-  private static TSDataType dataTypes[] = {
-          TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE,
-          TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE,
-          TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32,
-          TSDataType.INT32, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32,
-          TSDataType.INT32, TSDataType.INT32, TSDataType.INT32
-  };
-
-  public PerfTesting(Session session) {
-    this.session = session;
-  }
 
 
   public static void main(String[] args) throws InterruptedException {
@@ -68,8 +43,8 @@ public class PerfTesting {
     } else {
       dirpath = args[0];
     }
-    ExecutorService executor = Executors.newFixedThreadPool(threadNum);
-    for (int i = 0; i < threadNum; i++) {
+    ExecutorService executor = Executors.newFixedThreadPool(Constant.threadNum);
+    for (int i = 0; i < Constant.threadNum; i++) {
       String filename = dirpath + File.separator + "init_data_" + i + ".txt";
       executor.submit(new WorkThread(filename));
     }
