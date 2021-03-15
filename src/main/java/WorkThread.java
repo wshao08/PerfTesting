@@ -12,6 +12,7 @@ import org.apache.iotdb.tsfile.write.schema.VectorMeasurementSchema;
 
 public class WorkThread implements Runnable {
 
+
   private final String fileName;
   private final Random rand = new Random();
   private final Session session;
