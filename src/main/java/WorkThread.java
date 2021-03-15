@@ -1,49 +1,26 @@
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.*;
-
+import java.util.Collections;
+import java.util.Random;
 import org.apache.iotdb.rpc.IoTDBConnectionException;
-import org.apache.iotdb.rpc.StatementExecutionException;
 import org.apache.iotdb.session.Session;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.write.record.Tablet;
-import org.apache.iotdb.tsfile.write.schema.MeasurementSchema;
+import org.apache.iotdb.tsfile.write.schema.VectorMeasurementSchema;
 
 public class WorkThread implements Runnable {
 
-  private String fileName;
-  private static int fetchsize = 200;
-  private static String pathPrefix = "root.perf.";
+  private final String fileName;
   private final Random rand = new Random();
-  private Session session;
-  private static String vehicles[] = {
-      "accelerationFB", "accelerationLR", "speed_TypeA", "steeringAngle_TypeA", "EngineRPM_TypeA",
-      "TirePressureFL_kpa", "FuelGageIndication", "latitude", "longitude", "AccelPedalAngle_TypeA",
-      "TirePressureFR_kpa", "TirePressureRL_kpa", "TirePressureRR_kpa", "AmbientTemperature",
-      "TemperatureD",
-      "turnLampSwitchStatus", "ATShiftPosition", "BrakePedal", "DoorOpenD", "ParkingBrake",
-      "EcoModeIndicator",
-      "PowerModeSelect_TypeA", "SportModeSelect", "WindowPositionD", "AirConIndicator",
-      "Odometer_km", "HeadLamp_TypeB"
-  };
-  private static TSDataType dataTypes[] = {
-      TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE,
-      TSDataType.DOUBLE,
-      TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE,
-      TSDataType.DOUBLE,
-      TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.DOUBLE, TSDataType.INT32, TSDataType.INT32,
-      TSDataType.INT32,
-      TSDataType.INT32, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32, TSDataType.INT32,
-      TSDataType.INT32,
-      TSDataType.INT32, TSDataType.INT32, TSDataType.INT32
-  };
+  private final Session session;
+  private final VectorMeasurementSchema measurementSchemas = new VectorMeasurementSchema(
+      Constant.MEASUREMENT_NAMES, Constant.DATA_TYPES);
 
   public WorkThread(String file) {
     this.fileName = file;
-    this.session = new Session("172.31.28.118", 6667, "root", "root");
+    this.session = new Session(Constant.HOST, 6667, "root", "root");
     try {
       session.open(false);
     } catch (IoTDBConnectionException e) {
@@ -55,80 +32,74 @@ public class WorkThread implements Runnable {
   public void run() {
     File inFile = new File(fileName);
     String line = "";
-    List<String> deviceIds = new ArrayList<>();
-    List<Long> minuteIds = new ArrayList<>();
     long count = 0;
-    long totalInsertTime = 0;
-    long start = System.nanoTime();
+    long duration = 0;
+    String deviceId;
+    int row_counter = 0;
     try {
       BufferedReader reader = new BufferedReader(new FileReader(inFile));
       while ((line = reader.readLine()) != null) {
-        String item[] = line.split(",");
+        row_counter++;
+        String[] item = line.split(",");
         String device = item[0];
-        deviceIds.add(pathPrefix + device);
-        String minuteId = item[1];
-        minuteIds.add(Long.parseLong(minuteId.trim()));
-        if (minuteIds.size() == fetchsize) {
-          totalInsertTime += insertRecords(session, deviceIds, minuteIds);
-          deviceIds.clear();
-          minuteIds.clear();
-          count += (Constant.tabletRowNumber * fetchsize);
+        int storage_group = Integer.parseInt(device) % 3;
+        deviceId = Constant.PATH_PREFIX + storage_group + Constant.DOT + device;
+        long minuteId = Long.parseLong(item[1].trim());
+        duration += generateAndInsertTablet(deviceId, minuteId);
+        count += Constant.TABLET_ROW_NUMBER;
+        if (row_counter % Constant.LOG_FREQ == 0) {
+          printResult(count, duration, false);
         }
       }
-      totalInsertTime += insertRecords(session, deviceIds, minuteIds);
-      count += (deviceIds.size() * Constant.tabletRowNumber);
       reader.close();
       this.session.close();
-    } catch (IOException | StatementExecutionException | IoTDBConnectionException ex) {
-      System.out.println("error" + ex.getMessage());
+    } catch (IOException | IoTDBConnectionException ex) {
+      System.out.println("error: " + ex.getMessage());
     }
-    long end = System.nanoTime();
-    long totaltime = end - start;
-    System.out.println(
-        "Thread " + Thread.currentThread().getName() + " spent " + totaltime / 1000000
-            + " miliseconds to insert " + count + " rows. " + "Pure insertion time: "
-            + totalInsertTime / 1000000);
+    printResult(count, duration, true);
   }
 
-  private long insertRecords(Session session, List<String> deviceIds, List<Long> times)
-      throws StatementExecutionException, IoTDBConnectionException {
-
-    long start;
-    long duration = 0;
-    List<MeasurementSchema> schemas = new ArrayList<>();
-    for (int i = 0; i < vehicles.length; i++) {
-      schemas.add(new MeasurementSchema(vehicles[i], dataTypes[i]));
-    }
-
-    Map<String, Tablet> tablets = new HashMap<>();
-
-    for (int i = 0; i < deviceIds.size(); i++) {
-      String deviceId = deviceIds.get(i);
-      long minuteId = times.get(i);
-      Tablet tablet = new Tablet(deviceId, schemas);
-
-      // create a tablet
-      for (int row = 0; row < Constant.tabletRowNumber; row++) {
-        int rowId = tablet.rowSize++;
-        tablet.addTimestamp(rowId, minuteId * 60 + row);
-        for (int col = 0; col < dataTypes.length; col++) {
-          tablet.addValue(vehicles[col], rowId, getNext(col, dataTypes));
+  public long generateAndInsertTablet(String deviceId, long minuteId) {
+    // create a tablet
+    Tablet tablet = new Tablet(deviceId, Collections.singletonList(measurementSchemas), false);
+    long[] timestamps = tablet.timestamps;
+    Object[] values = tablet.values;
+    for (int innerMinute = 0; innerMinute < Constant.TABLET_ROW_NUMBER; innerMinute++) {
+      int rowId = tablet.rowSize++;
+      timestamps[rowId] = minuteId * 60 + innerMinute;
+      for (int col = 0; col < Constant.DATA_TYPES.length; col++) {
+        switch (Constant.DATA_TYPES[col]) {
+          case INT32:
+            int[] sensor = (int[]) values[col];
+            sensor[rowId] = (int) getNext(col, Constant.DATA_TYPES);
+            break;
+          case DOUBLE:
+            double[] sensors = (double[]) values[col];
+            sensors[rowId] = (double) getNext(col, Constant.DATA_TYPES);
+            break;
+          default:
+            throw new IllegalArgumentException("DataType not allowed");
         }
       }
-      tablets.put(deviceId, tablet);
-      if (tablets.size() == Constant.tabletsBatchNumber) {
-        start = System.nanoTime();
-        session.insertTablets(tablets, true);
-        duration += (System.nanoTime() - start);
-        tablets.clear();
-      }
     }
-    if (!tablets.isEmpty()) {
-      start = System.nanoTime();
-      session.insertTablets(tablets, true);
-      duration += (System.nanoTime() - start);
+    // insert a tablet
+    long start = System.nanoTime();
+    try {
+      session.insertTablet(tablet, true);
+    } catch (Throwable t) {
+      t.printStackTrace();
     }
-    return duration;
+    return System.nanoTime() - start;
+  }
+
+  public void printResult(long count, long duration, boolean isFinal) {
+    if (isFinal) {
+      System.out.print(">>>>> Final ");
+    }
+    System.out.println(
+        "Thread " + Thread.currentThread().getName() + ", " + count + " rows. "
+            + "Pure insertion time: " + duration / 1000000 + ", speed: " + (count / (duration
+            / 1000000000.0)) + "r/s");
   }
 
   public Object getNext(int index, TSDataType[] types) {
