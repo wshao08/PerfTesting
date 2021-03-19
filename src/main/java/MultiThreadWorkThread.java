@@ -10,7 +10,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.write.record.Tablet;
 import org.apache.iotdb.tsfile.write.schema.VectorMeasurementSchema;
 
-public class WorkThread implements Runnable {
+public class MultiThreadWorkThread implements Runnable {
 
 
   private final String fileName;
@@ -20,8 +20,8 @@ public class WorkThread implements Runnable {
       Constant.MEASUREMENT_NAMES, Constant.DATA_TYPES);
   Tablet tablet = new Tablet(null, Collections.singletonList(measurementSchemas), 60);
 
-  public WorkThread(String file) {
-    this.fileName = file;
+  public MultiThreadWorkThread(String fileName) {
+    this.fileName = fileName;
     this.session = new Session(Constant.HOST, 6667, "root", "root");
     try {
       session.open(false);

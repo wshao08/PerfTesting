@@ -32,7 +32,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 
-public class PerfTesting {
+public class PerfTestingMultiThread {
 
 
   public static void main(String[] args)
@@ -48,6 +48,9 @@ public class PerfTesting {
       if (args.length > 2) {
         ip = args[2].trim();
         Constant.HOST = ip;
+      }
+      if (args.length > 3) {
+        Constant.MULTI_THREAD_NUMBER = Integer.parseInt(args[3].trim());
       }
     }
 
@@ -81,10 +84,10 @@ public class PerfTesting {
       session.close();
     }
 
-    ExecutorService executor = Executors.newFixedThreadPool(Constant.THREAD_NUM);
-    for (int i = 0; i < Constant.THREAD_NUM; i++) {
+    ExecutorService executor = Executors.newFixedThreadPool(Constant.MULTI_THREAD_NUMBER);
+    for (int i = 0; i < Constant.MULTI_THREAD_NUMBER; i++) {
       String filename = dirpath + File.separator + "init_data_" + i + ".txt";
-      executor.submit(new WorkThread(filename));
+      executor.submit(new MultiThreadWorkThread(filename));
     }
     executor.shutdown();
     executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);

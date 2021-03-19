@@ -1,8 +1,11 @@
 
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 
 public class Constant {
 
+
+  public static final int STORAGE_GROUP_NUM = 3;
 
   private Constant() {
   }
@@ -33,6 +36,18 @@ public class Constant {
       TSDataType.INT32, TSDataType.INT32, TSDataType.INT32
   };
 
+  public final static TSEncoding[] ENCODINGS = {
+      TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN,
+      TSEncoding.PLAIN,
+      TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN,
+      TSEncoding.PLAIN,
+      TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN,
+      TSEncoding.PLAIN,
+      TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN,
+      TSEncoding.PLAIN,
+      TSEncoding.PLAIN, TSEncoding.PLAIN, TSEncoding.PLAIN
+  };
+
 
   //  public static int fetchsize = 200;
   public static final String PATH_PREFIX = "root.perf_";
@@ -40,5 +55,9 @@ public class Constant {
 
   public static final int LOG_FREQ = 1000;
 
-  public static final String HOST = "172.31.28.118";
+  public static String HOST = "172.31.28.118";
+//  public static final String HOST = "127.0.0.1";
+
+
+  public static int MULTI_THREAD_NUMBER = 72;
 }
