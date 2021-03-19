@@ -5,7 +5,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 public class Constant {
 
 
-  public static final int STORAGE_GROUP_NUM = 3;
+  public static final int STORAGE_GROUP_NUM = 24;
 
   private Constant() {
   }
@@ -55,8 +55,12 @@ public class Constant {
 
   public static final int LOG_FREQ = 1000;
 
-  public static String HOST = "172.31.28.118";
+//  public static String HOST = "172.31.28.118";
 //  public static final String HOST = "127.0.0.1";
+
+  public static  String HOST = "172.31.20.182";
+  public static  String HOST1 = "172.31.26.185";
+  public static  String HOST2 = "172.31.28.118";
 
 
   public static int MULTI_THREAD_NUMBER = 72;

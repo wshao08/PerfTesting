@@ -3,6 +3,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import org.apache.iotdb.rpc.IoTDBConnectionException;
 import org.apache.iotdb.session.Session;
@@ -15,18 +17,32 @@ public class WorkThread implements Runnable {
 
   private final String fileName;
   private final Random rand = new Random();
-  private final Session session;
   private final VectorMeasurementSchema measurementSchemas = new VectorMeasurementSchema(
       Constant.MEASUREMENT_NAMES, Constant.DATA_TYPES);
+
+  private Map<Integer, Session> sessionMap;
   Tablet tablet = new Tablet(null, Collections.singletonList(measurementSchemas), 60);
 
   public WorkThread(String file) {
     this.fileName = file;
-    this.session = new Session(Constant.HOST, 6667, "root", "root");
+    this.sessionMap = new HashMap<>();
     try {
-      session.open(false);
+      Session[] sessions = new Session[3];
+      Session session1 = new Session(Constant.HOST, 6667, "root", "root");
+      session1.open(false);
+      Session session2 = new Session(Constant.HOST1, 6667, "root", "root");
+      session2.open(false);
+      Session session3 = new Session(Constant.HOST2, 6667, "root", "root");
+      session3.open(false);
+      sessions[0] = session1;
+      sessions[1] = session2;
+      sessions[2] = session3;
+      for (int i = 0; i < Constant.STORAGE_GROUP_NUM; i++) {
+        sessionMap.put(i, sessions[i % 3]);
+      }
     } catch (IoTDBConnectionException e) {
       System.out.println(e.getMessage());
+      e.printStackTrace();
     }
   }
 
@@ -47,21 +63,23 @@ public class WorkThread implements Runnable {
         int storage_group = Integer.parseInt(device) % Constant.STORAGE_GROUP_NUM;
         deviceId = Constant.PATH_PREFIX + storage_group + Constant.DOT + device;
         long minuteId = Long.parseLong(item[1].trim());
-        duration += generateAndInsertTablet(deviceId, minuteId);
+        duration += generateAndInsertTablet(deviceId, minuteId,storage_group);
         count += Constant.TABLET_ROW_NUMBER;
         if (row_counter % Constant.LOG_FREQ == 0) {
           printResult(count, duration, false);
         }
       }
       reader.close();
-      this.session.close();
+      for (Session session : sessionMap.values()) {
+        session.close();
+      }
     } catch (IOException | IoTDBConnectionException ex) {
       System.out.println("error: " + ex.getMessage());
     }
     printResult(count, duration, true);
   }
 
-  public long generateAndInsertTablet(String deviceId, long minuteId) {
+  public long generateAndInsertTablet(String deviceId, long minuteId,int storage_group) {
     // create a tablet
 //    Tablet tablet = new Tablet(deviceId, Collections.singletonList(measurementSchemas), 60);
     tablet.setDeviceId(deviceId);
@@ -89,7 +107,7 @@ public class WorkThread implements Runnable {
     // insert a tablet
     long start = System.nanoTime();
     try {
-      session.insertTablet(tablet, true);
+      sessionMap.get(storage_group).insertTablet(tablet, true);
     } catch (Throwable t) {
       t.printStackTrace();
     }
